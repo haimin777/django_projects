@@ -17,8 +17,61 @@ from .forms import ModuleFormSet
 
 ###
 
-# for display courses
+from django.core.cache import cache # for cacheing
 
+### for enroll course
+from students.forms import CourseEnrollForm
+###
+
+# for display courses
+from django.db.models import Count
+from .models import Subject
+from django.views.generic.detail import DetailView
+
+
+class CourseListView(TemplateResponseMixin, View):
+    model = Course
+    template_name = 'courses/course/list.html'
+
+    def get(self, request, subject=None):
+        subjects = cache.get('all_subjects')
+        if not subjects:
+            subjects = Subject.objects.annotate(total_courses=Count('courses'))
+
+        cache.set('all_subjects', subjects)
+        all_courses = Course.objects.annotate(total_modules=Count('modules'))
+
+        if subject:
+            subject = get_object_or_404(Subject, slug=subject)
+            key = 'subject_{}_courses'.format(subject.id)
+            courses = cache.get(key)
+            if not courses:
+                courses = all_courses.filter(subject=subject)
+                cache.set(key, courses)
+                courses = courses.filter(subject=subject)
+
+        else:
+            courses = cache.get('all_courses')
+            if not courses:
+                courses = all_courses
+                cache.set('all_courses', courses)
+
+        return self.render_to_response({'subjects': subjects, 'subject': subject,
+                                        'courses': courses})
+
+
+class CourseDetailView(DetailView):
+    model = Course
+    template_name = 'courses/course/detail.html'
+
+    def get_context_data(self, **kwargs):
+        context = super(CourseDetailView,
+                        self).get_context_data(**kwargs)
+
+        context['enroll_form'] = CourseEnrollForm(initial={'course': self.object})
+        return context
+
+###
 
 class ModuleOrderView(CsrfExemptMixin, JsonRequestResponseMixin,View): # for drag'n'drop
     def post(self, request):

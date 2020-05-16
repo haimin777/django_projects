@@ -6,6 +6,12 @@ from django.contrib.contenttypes.fields import GenericForeignKey
 
 from .fields import OrderField
 
+
+### for render course content
+from django.template.loader import render_to_string
+from django.utils.safestring import mark_safe
+###
+
 # Create your models here.
 
 
@@ -19,6 +25,7 @@ class Subject(models.Model):
     def __str__(self):
         return self.title
 
+
 class Course(models.Model):
     owner = models.ForeignKey(User,related_name='courses_created',
                                     on_delete=models.CASCADE)
@@ -28,6 +35,9 @@ class Course(models.Model):
     slug = models.SlugField(max_length=200, unique=True)
     overview = models.TextField()
     created = models.DateTimeField(auto_now_add=True)
+    students = models.ManyToManyField(User,
+                                      related_name='courses_joined',
+                                      blank=True)
 
     class Meta:
         ordering = ['-created']
@@ -74,6 +84,9 @@ class ItemBase(models.Model):
 
     class Meta:
         abstract = True
+
+    def render(self):
+        return render_to_string('courses/content/{}.html'.format(self._meta.model_name), {'item': self})
 
     def __str__(self):
         return self.title
