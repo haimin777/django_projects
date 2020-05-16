@@ -7,11 +7,31 @@ from .models import Course
 
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 
+from braces.views import CsrfExemptMixin, JsonRequestResponseMixin # drag'n'drop order manipulations
+
 ### modules organizing imports
 
 from django.shortcuts import redirect, get_object_or_404
 from django.views.generic.base import TemplateResponseMixin, View
 from .forms import ModuleFormSet
+
+###
+
+# for display courses
+
+
+class ModuleOrderView(CsrfExemptMixin, JsonRequestResponseMixin,View): # for drag'n'drop
+    def post(self, request):
+        for id, order in self.request_json.items():
+            Module.objects.filter(id=id, course__owner=request.user).update(order=order)
+        return self.render_json_response({'saved': 'OK'})
+
+
+class ContentOrderView(CsrfExemptMixin, JsonRequestResponseMixin, View):
+    def post(self, request):
+        for id, order in self.request_json.items():
+            Content.objects.filter(id=id, module__course__owner=request.user).update(order=order)
+        return self.render_json_response({'saved': 'OK'})
 
 ###
 ### content of modules
